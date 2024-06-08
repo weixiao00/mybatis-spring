@@ -98,6 +98,7 @@ import org.springframework.util.StringUtils;
  *
  * @see MapperFactoryBean
  * @see ClassPathMapperScanner
+ * Mapper接口的扫描类
  */
 public class MapperScannerConfigurer
     implements BeanDefinitionRegistryPostProcessor, InitializingBean, ApplicationContextAware, BeanNameAware {
@@ -244,6 +245,8 @@ public class MapperScannerConfigurer
    * @param sqlSessionTemplate
    *          a template of SqlSession
    */
+  // 其实是在MapperScannerRegistrar中根据MapperScanner注解的配置创建的SqlSessionTemplate
+  // 好像没有设置这个，只是设置了名字
   @Deprecated
   public void setSqlSessionTemplate(SqlSessionTemplate sqlSessionTemplate) {
     this.sqlSessionTemplate = sqlSessionTemplate;
@@ -396,6 +399,7 @@ public class MapperScannerConfigurer
    * {@inheritDoc}
    *
    * @since 1.0.2
+   * 这里会被回调BeanDefinitionRegistryPostProcessor.postProcessBeanDefinitionRegistry方法
    */
   @Override
   public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry) {
@@ -403,6 +407,7 @@ public class MapperScannerConfigurer
       processPropertyPlaceHolders();
     }
 
+    // 创建ClassPathMapperScanner对象
     ClassPathMapperScanner scanner = new ClassPathMapperScanner(registry, getEnvironment());
     scanner.setAddToConfig(this.addToConfig);
     scanner.setAnnotationClass(this.annotationClass);
@@ -422,6 +427,9 @@ public class MapperScannerConfigurer
       scanner.setDefaultScope(defaultScope);
     }
     scanner.registerFilters();
+    // 调用ClassPathMapperScanner的scan方法，扫描指定包下的接口
+    // 创建MapperFactoryBean对象，并将BeanDefinition注册到BeanDefinitionRegistry中
+    // 生成mapper接口的代理对象
     scanner.scan(
         StringUtils.tokenizeToStringArray(this.basePackage, ConfigurableApplicationContext.CONFIG_LOCATION_DELIMITERS));
   }

@@ -40,11 +40,14 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  *
  * @author Hunter Presnall
  * @author Eduardo Macarron
+ * 事务管理对象
  */
 public class SpringManagedTransaction implements Transaction {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SpringManagedTransaction.class);
 
+  // 看项目里使用什么样的数据库连接池
+  // 数据源
   private final DataSource dataSource;
 
   private Connection connection;
@@ -63,6 +66,7 @@ public class SpringManagedTransaction implements Transaction {
    */
   @Override
   public Connection getConnection() throws SQLException {
+    // 获取一个连接
     if (this.connection == null) {
       openConnection();
     }
@@ -77,7 +81,9 @@ public class SpringManagedTransaction implements Transaction {
    * false and will always call commit/rollback so we need to no-op that calls.
    */
   private void openConnection() throws SQLException {
+    // 从数据源里获取一个连接，可能是从数据库连接池里获取
     this.connection = DataSourceUtils.getConnection(this.dataSource);
+    // 是否自动提交
     this.autoCommit = this.connection.getAutoCommit();
     this.isConnectionTransactional = DataSourceUtils.isConnectionTransactional(this.connection, this.dataSource);
 
@@ -90,6 +96,7 @@ public class SpringManagedTransaction implements Transaction {
    */
   @Override
   public void commit() throws SQLException {
+    // 提交事务，不是自动提交
     if (this.connection != null && !this.isConnectionTransactional && !this.autoCommit) {
       LOGGER.debug(() -> "Committing JDBC Connection [" + this.connection + "]");
       this.connection.commit();
@@ -101,6 +108,7 @@ public class SpringManagedTransaction implements Transaction {
    */
   @Override
   public void rollback() throws SQLException {
+    // 回滚事务，不是自动提交
     if (this.connection != null && !this.isConnectionTransactional && !this.autoCommit) {
       LOGGER.debug(() -> "Rolling back JDBC Connection [" + this.connection + "]");
       this.connection.rollback();
@@ -112,6 +120,7 @@ public class SpringManagedTransaction implements Transaction {
    */
   @Override
   public void close() throws SQLException {
+    // 关闭事务，将连接放入连接池。看项目里使用什么样的数据库连接池
     DataSourceUtils.releaseConnection(this.connection, this.dataSource);
   }
 
@@ -120,6 +129,7 @@ public class SpringManagedTransaction implements Transaction {
    */
   @Override
   public Integer getTimeout() throws SQLException {
+    // 没太明白为啥要从ThreadLocal里获取
     ConnectionHolder holder = (ConnectionHolder) TransactionSynchronizationManager.getResource(dataSource);
     if (holder != null && holder.hasTimeout()) {
       return holder.getTimeToLiveInSeconds();

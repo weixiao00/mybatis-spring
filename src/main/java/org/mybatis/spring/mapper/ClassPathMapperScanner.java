@@ -57,7 +57,8 @@ import org.springframework.util.StringUtils;
  * @author Eduardo Macarron
  *
  * @see MapperFactoryBean
- *
+ * Mapper接口扫描器
+ * 扫描Mapper接口生成MapperFactoryBean。用来生成Mapper接口的代理对象
  * @since 1.2.0
  */
 public class ClassPathMapperScanner extends ClassPathBeanDefinitionScanner {
@@ -85,6 +86,7 @@ public class ClassPathMapperScanner extends ClassPathBeanDefinitionScanner {
 
   private Class<?> markerInterface;
 
+  // 生成mapper代码类的对象
   private Class<? extends MapperFactoryBean> mapperFactoryBeanClass = MapperFactoryBean.class;
 
   private String defaultScope;
@@ -252,6 +254,7 @@ public class ClassPathMapperScanner extends ClassPathBeanDefinitionScanner {
    */
   @Override
   public Set<BeanDefinitionHolder> doScan(String... basePackages) {
+    // 所有mapper接口的beanDefinition
     Set<BeanDefinitionHolder> beanDefinitions = super.doScan(basePackages);
 
     if (beanDefinitions.isEmpty()) {
@@ -260,18 +263,26 @@ public class ClassPathMapperScanner extends ClassPathBeanDefinitionScanner {
             + "' package. Please check your configuration.");
       }
     } else {
+      // 处理mapper接口的beanDefinition
       processBeanDefinitions(beanDefinitions);
     }
 
     return beanDefinitions;
   }
 
+  /**
+   * 回调方法，用于处理扫描到的BeanDefinition
+   * 重新赋值Mapper的BeanDefinition
+   * @param beanDefinitions
+   */
   private void processBeanDefinitions(Set<BeanDefinitionHolder> beanDefinitions) {
     AbstractBeanDefinition definition;
+    // 获取BeanDefinitionRegistry注册器
     BeanDefinitionRegistry registry = getRegistry();
     for (BeanDefinitionHolder holder : beanDefinitions) {
       definition = (AbstractBeanDefinition) holder.getBeanDefinition();
       boolean scopedProxy = false;
+      // 单例应该走不到这里
       if (ScopedProxyFactoryBean.class.getName().equals(definition.getBeanClassName())) {
         definition = (AbstractBeanDefinition) Optional
             .ofNullable(((RootBeanDefinition) definition).getDecoratedDefinition())
@@ -279,6 +290,7 @@ public class ClassPathMapperScanner extends ClassPathBeanDefinitionScanner {
                 "The target bean definition of scoped proxy bean not found. Root bean definition[" + holder + "]"));
         scopedProxy = true;
       }
+      // mapper接口的类名
       String beanClassName = definition.getBeanClassName();
       LOGGER.debug(() -> "Creating MapperFactoryBean with name '" + holder.getBeanName() + "' and '" + beanClassName
           + "' mapperInterface");
@@ -287,20 +299,27 @@ public class ClassPathMapperScanner extends ClassPathBeanDefinitionScanner {
       // but, the actual class of the bean is MapperFactoryBean
       definition.getConstructorArgumentValues().addGenericArgumentValue(beanClassName); // issue #59
       try {
+        // 获取mapper接口的Class对象
         Class<?> beanClass = Resources.classForName(beanClassName);
         // Attribute for MockitoPostProcessor
         // https://github.com/mybatis/spring-boot-starter/issues/475
+        //public interface FactoryBean<T> {
+        //    String OBJECT_TYPE_ATTRIBUTE = "factoryBeanObjectType";
         definition.setAttribute(FACTORY_BEAN_OBJECT_TYPE, beanClass);
         // for spring-native
+        // 设置MapperFactoryBean里的mapperInterface属性为mapper接口的Class对象
         definition.getPropertyValues().add("mapperInterface", beanClass);
       } catch (ClassNotFoundException ignore) {
         // ignore
       }
 
+      // 设置beanDefinition的类信息为MapperFactoryBean
       definition.setBeanClass(this.mapperFactoryBeanClass);
 
+      // 设置MapperFactoryBean的属性addToConfig
       definition.getPropertyValues().add("addToConfig", this.addToConfig);
 
+      // 设置MapperFactoryBean的属性sqlSessionFactory。在父类里
       boolean explicitFactoryUsed = false;
       if (StringUtils.hasText(this.sqlSessionFactoryBeanName)) {
         definition.getPropertyValues().add("sqlSessionFactory",
@@ -311,6 +330,7 @@ public class ClassPathMapperScanner extends ClassPathBeanDefinitionScanner {
         explicitFactoryUsed = true;
       }
 
+      // 设置MapperFactoryBean的属性sqlSessionTemplate。在父类里
       if (StringUtils.hasText(this.sqlSessionTemplateBeanName)) {
         if (explicitFactoryUsed) {
           LOGGER.warn(
@@ -343,11 +363,15 @@ public class ClassPathMapperScanner extends ClassPathBeanDefinitionScanner {
         definition.setScope(defaultScope);
       }
 
+      // 不是单例才注册
       if (!definition.isSingleton()) {
         BeanDefinitionHolder proxyHolder = ScopedProxyUtils.createScopedProxy(holder, registry, true);
         if (registry.containsBeanDefinition(proxyHolder.getBeanName())) {
           registry.removeBeanDefinition(proxyHolder.getBeanName());
         }
+
+        // 注册MapperFactoryBean的BeanDefinition
+        // beanName是beanDefinition的名字，其实就是mapper接口的类名
         registry.registerBeanDefinition(proxyHolder.getBeanName(), proxyHolder.getBeanDefinition());
       }
 

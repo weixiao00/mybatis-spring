@@ -29,6 +29,7 @@ import org.springframework.transaction.support.ResourceHolderSupport;
  *
  * @author Hunter Presnall
  * @author Eduardo Macarron
+ * sqlSesion工程和执行器类型的封装类
  */
 public final class SqlSessionHolder extends ResourceHolderSupport {
 

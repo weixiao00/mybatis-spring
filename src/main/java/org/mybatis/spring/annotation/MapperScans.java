@@ -39,6 +39,8 @@ import org.springframework.context.annotation.Import;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 @Documented
+// 多个MapperScan注解的容器
+// 注册多个RepeatingRegistrar类
 @Import(MapperScannerRegistrar.RepeatingRegistrar.class)
 public @interface MapperScans {
   MapperScan[] value();

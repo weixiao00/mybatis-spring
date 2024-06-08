@@ -88,6 +88,15 @@ import org.springframework.util.ClassUtils;
  *
  * @see #setConfigLocation
  * @see #setDataSource
+ * sqlSessionFactoryBean是用来创建sqlSessionFactory工厂bean
+ * 有两个主要的bean
+ *   1. 一个是创建sqlSessionFactory的bean。名字叫做sqlSessionFactoryBean，实现了两个Spring的类，一个InitializingBean，FactoryBean
+ *   InitializingBean重写的方法创建sqlSessioniFactory
+ *   FactoryBean重写getObject方法返回sqlSessioniFactory
+ *
+ *   2. mapperFactoryBean是一个mapper接口会有一个mapperFactoryBean。实现了FactoryBean方法
+ *   通过重写getObject方法返回Mapper接口的代理对象。调用的时候就走到了代理的方法
+ *   mapperFactoryBean也是实现了一个SqlSessionDaoSupport实现了daoSupport实现了InitializingBean。创建了mapper的MapperProxyFactory。为了走代码的方法。同时也包含了sqlSessionTemplate
  */
 public class SqlSessionFactoryBean
     implements FactoryBean<SqlSessionFactory>, InitializingBean, ApplicationListener<ContextRefreshedEvent> {
@@ -101,6 +110,7 @@ public class SqlSessionFactoryBean
 
   private Configuration configuration;
 
+  // mapper的xml文件位置
   private Resource[] mapperLocations;
 
   private DataSource dataSource;
@@ -574,6 +584,8 @@ public class SqlSessionFactoryBean
     state((configuration == null && configLocation == null) || !(configuration != null && configLocation != null),
         "Property 'configuration' and 'configLocation' can not specified with together");
 
+    // 构造sqlSessionFactory工厂
+    // 无非就是加载xml或者注解的配置。生成Configuration对象。然后生成sqlSessionFactory
     this.sqlSessionFactory = buildSqlSessionFactory();
   }
 
@@ -593,6 +605,7 @@ public class SqlSessionFactoryBean
 
     final Configuration targetConfiguration;
 
+    // 解析各种配置，生成Configuration对象
     XMLConfigBuilder xmlConfigBuilder = null;
     if (this.configuration != null) {
       targetConfiguration = this.configuration;
@@ -615,12 +628,14 @@ public class SqlSessionFactoryBean
     Optional.ofNullable(this.objectWrapperFactory).ifPresent(targetConfiguration::setObjectWrapperFactory);
     Optional.ofNullable(this.vfs).ifPresent(targetConfiguration::setVfsImpl);
 
+    // 解析类型别名包
     if (hasLength(this.typeAliasesPackage)) {
       scanClasses(this.typeAliasesPackage, this.typeAliasesSuperType).stream()
           .filter(clazz -> !clazz.isAnonymousClass()).filter(clazz -> !clazz.isInterface())
           .filter(clazz -> !clazz.isMemberClass()).forEach(targetConfiguration.getTypeAliasRegistry()::registerAlias);
     }
 
+    // 解析类型别名
     if (!isEmpty(this.typeAliases)) {
       Stream.of(this.typeAliases).forEach(typeAlias -> {
         targetConfiguration.getTypeAliasRegistry().registerAlias(typeAlias);
@@ -628,6 +643,7 @@ public class SqlSessionFactoryBean
       });
     }
 
+    // 解析插件
     if (!isEmpty(this.plugins)) {
       Stream.of(this.plugins).forEach(plugin -> {
         targetConfiguration.addInterceptor(plugin);
@@ -635,12 +651,14 @@ public class SqlSessionFactoryBean
       });
     }
 
+    // 解析类型处理器包
     if (hasLength(this.typeHandlersPackage)) {
       scanClasses(this.typeHandlersPackage, TypeHandler.class).stream().filter(clazz -> !clazz.isAnonymousClass())
           .filter(clazz -> !clazz.isInterface()).filter(clazz -> !Modifier.isAbstract(clazz.getModifiers()))
           .forEach(targetConfiguration.getTypeHandlerRegistry()::register);
     }
 
+    // 解析类型处理器
     if (!isEmpty(this.typeHandlers)) {
       Stream.of(this.typeHandlers).forEach(typeHandler -> {
         targetConfiguration.getTypeHandlerRegistry().register(typeHandler);
@@ -669,6 +687,7 @@ public class SqlSessionFactoryBean
 
     Optional.ofNullable(this.cache).ifPresent(targetConfiguration::addCache);
 
+    // 解析xml文件形式的配置
     if (xmlConfigBuilder != null) {
       try {
         xmlConfigBuilder.parse();
@@ -680,10 +699,13 @@ public class SqlSessionFactoryBean
       }
     }
 
+    // 设置环境数据源
+    // 同时设置事务工厂，如果为空，默认使用SpringManagedTransactionFactory，spring-jdbc事务管理
     targetConfiguration.setEnvironment(new Environment(this.environment,
         this.transactionFactory == null ? new SpringManagedTransactionFactory() : this.transactionFactory,
         this.dataSource));
 
+    // 需要扫描的mapper的xml文件
     if (this.mapperLocations != null) {
       if (this.mapperLocations.length == 0) {
         LOGGER.warn(() -> "Property 'mapperLocations' was specified but matching resources are not found.");
@@ -693,8 +715,10 @@ public class SqlSessionFactoryBean
             continue;
           }
           try {
+            // 解析mapper文件
             XMLMapperBuilder xmlMapperBuilder = new XMLMapperBuilder(mapperLocation.getInputStream(),
                 targetConfiguration, mapperLocation.toString(), targetConfiguration.getSqlFragments());
+            // 开始解析
             xmlMapperBuilder.parse();
           } catch (Exception e) {
             throw new IOException("Failed to parse mapping resource: '" + mapperLocation + "'", e);
@@ -708,11 +732,13 @@ public class SqlSessionFactoryBean
       LOGGER.debug(() -> "Property 'mapperLocations' was not specified.");
     }
 
+    // 通过configuration创建sqlSessionFactory
     return this.sqlSessionFactoryBuilder.build(targetConfiguration);
   }
 
   /**
    * {@inheritDoc}
+   * 通过这个方法获取sqlSessionFactory
    */
   @Override
   public SqlSessionFactory getObject() throws Exception {

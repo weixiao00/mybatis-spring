@@ -28,11 +28,13 @@ import org.apache.ibatis.transaction.TransactionFactory;
  * Creates a {@code SpringManagedTransaction}.
  *
  * @author Hunter Presnall
+ * 事务工厂
  */
 public class SpringManagedTransactionFactory implements TransactionFactory {
 
   /**
    * {@inheritDoc}
+   * 创建一个事务，设置数据源
    */
   @Override
   public Transaction newTransaction(DataSource dataSource, TransactionIsolationLevel level, boolean autoCommit) {

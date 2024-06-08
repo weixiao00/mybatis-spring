@@ -99,16 +99,21 @@ public final class SqlSessionUtils {
     notNull(sessionFactory, NO_SQL_SESSION_FACTORY_SPECIFIED);
     notNull(executorType, NO_EXECUTOR_TYPE_SPECIFIED);
 
+    // 获取SqlSessionHolder里边封装了DefaultSqlSession
+    // 看到最后其实是从ThreadLocal中获取SqlSession
     SqlSessionHolder holder = (SqlSessionHolder) TransactionSynchronizationManager.getResource(sessionFactory);
 
+    // 从holder里边获取DefaultSqlSession
     SqlSession session = sessionHolder(executorType, holder);
     if (session != null) {
       return session;
     }
 
     LOGGER.debug(() -> "Creating a new SqlSession");
+    // 为空的话，通过sessionFactory工厂创建一个新的DefaultSqlSession
     session = sessionFactory.openSession(executorType);
 
+    // 封装成holder放入到ThreadLocal中
     registerSessionHolder(sessionFactory, executorType, exceptionTranslator, session);
 
     return session;
@@ -169,9 +174,11 @@ public final class SqlSessionUtils {
             "Cannot change the ExecutorType when there is an existing transaction");
       }
 
+      // 引用次数+1
       holder.requested();
 
       LOGGER.debug(() -> "Fetched SqlSession [" + holder.getSqlSession() + "] from current transaction");
+      // 获取DefaultSqlSession
       session = holder.getSqlSession();
     }
     return session;
