@@ -255,6 +255,7 @@ public class ClassPathMapperScanner extends ClassPathBeanDefinitionScanner {
   @Override
   public Set<BeanDefinitionHolder> doScan(String... basePackages) {
     // 所有mapper接口的beanDefinition
+    // 扫描指定包里的所有接口。即使是没有使用@Mapper注解标注的接口
     Set<BeanDefinitionHolder> beanDefinitions = super.doScan(basePackages);
 
     if (beanDefinitions.isEmpty()) {
@@ -276,6 +277,7 @@ public class ClassPathMapperScanner extends ClassPathBeanDefinitionScanner {
    * @param beanDefinitions
    */
   private void processBeanDefinitions(Set<BeanDefinitionHolder> beanDefinitions) {
+    // definition已经注册进去，这里只是修改属性
     AbstractBeanDefinition definition;
     // 获取BeanDefinitionRegistry注册器
     BeanDefinitionRegistry registry = getRegistry();

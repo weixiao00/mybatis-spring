@@ -436,7 +436,7 @@ public class SqlSessionTemplate implements SqlSession, DisposableBean {
         if (!isSqlSessionTransactional(sqlSession, SqlSessionTemplate.this.sqlSessionFactory)) {
           // force commit even on non-dirty sessions because some databases require
           // a commit/rollback before calling close()
-          // 提交事务
+          // 手动提交事务
           sqlSession.commit(true);
         }
         return result;

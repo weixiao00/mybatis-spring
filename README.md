@@ -22,3 +22,5 @@ Essentials
 
 * [See the published docs](https://mybatis.org/spring/)
 * [See the snapshot docs](src/site/markdown) (Note: may contain explanation of unreleased features)
+
+看代码入口：MapperScans注解导入了MapperScannerRegistrar类
